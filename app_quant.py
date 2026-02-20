@@ -7,6 +7,8 @@ import nltk
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import datetime
 import urllib.request
+import urllib.parse
+import json
 import xml.etree.ElementTree as ET
 
 # Descargar el diccionario para la IA
@@ -24,6 +26,39 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+# ==========================================
+# BARRA LATERAL: BUSCADOR DE TICKERS
+# ==========================================
+with st.sidebar:
+    st.header("🔍 Buscador de Tickers")
+    st.markdown("¿No sabes el símbolo oficial? Escribe el nombre de la empresa:")
+    busqueda = st.text_input("Ej: Mercado Libre, Banco Frances, SPY")
+    
+    if st.button("🔎 Buscar"):
+        if busqueda:
+            with st.spinner("Buscando en Wall Street..."):
+                try:
+                    # Conexión directa a la API de búsqueda de Yahoo Finance
+                    url = f"https://query2.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(busqueda)}&quotesCount=5"
+                    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                    respuesta = urllib.request.urlopen(req)
+                    datos = json.loads(respuesta.read())
+                    
+                    if 'quotes' in datos and len(datos['quotes']) > 0:
+                        st.markdown("### Resultados:")
+                        for q in datos['quotes']:
+                            ticker_res = q.get('symbol', 'N/A')
+                            nombre = q.get('shortname', q.get('longname', 'Desconocido'))
+                            tipo = q.get('quoteType', 'Activo')
+                            bolsa = q.get('exchange', '')
+                            # Agregamos la bolsa para diferenciar fácilmente Argentina de EE.UU.
+                            st.success(f"**{ticker_res}** ({nombre}) - {tipo} | {bolsa}")
+                    else:
+                        st.warning("No se encontraron resultados.")
+                except Exception as e:
+                    st.error("Error al buscar. Intenta de nuevo.")
+
+# Título Principal
 st.title("📊 Tu Bunker Cuantitativo")
 st.markdown("Plataforma integral: Proyección estadística, Análisis Técnico, Radiografía Fundamental y Sentimiento con IA.")
 
@@ -46,6 +81,14 @@ with tab1:
     if st.button("🚀 Ejecutar Análisis"):
         with st.spinner('Procesando algoritmos de predicción y análisis técnico...'):
             try:
+                # 1. Obtener el nombre oficial de la empresa primero
+                stock_data = yf.Ticker(ticker_mc)
+                nombre_empresa = stock_data.info.get('longName', stock_data.info.get('shortName', ticker_mc))
+                
+                # Imprimir el nombre de la empresa como un título destacado Neón
+                st.markdown(f"<h2 style='text-align: center; color: #3179f5; border-bottom: 1px solid #2a2e39; padding-bottom: 10px;'>🏢 {nombre_empresa} ({ticker_mc})</h2>", unsafe_allow_html=True)
+
+                # 2. Descargar los datos históricos
                 df = yf.download(ticker_mc, period='5y', progress=False)
                 
                 # MATRIZ LIMPIA
@@ -67,45 +110,37 @@ with tab1:
                 p95 = np.percentile(price_paths, 95, axis=1)
                 
                 # =========================================================
-                # NUEVO DISEÑO: ESTILO TRADINGVIEW / TECNOLÓGICO
+                # DISEÑO: ESTILO TRADINGVIEW / TECNOLÓGICO
                 # =========================================================
                 plt.style.use('dark_background')
                 fig, ax = plt.subplots(figsize=(12, 6))
                 
-                # Fondos y grilla
                 ax.set_facecolor('#131722')
                 fig.patch.set_facecolor('#131722')
                 ax.grid(True, color='#2a2e39', linestyle='-', alpha=0.4)
                 
-                # 1. Rutas de fondo (muy tenues)
                 ax.plot(price_paths[:, :30], color='#2a2e39', alpha=0.3, linewidth=0.8) 
-                
-                # 2. Cono de Probabilidad (Sombreado tecnológico)
                 ax.fill_between(range(len(p50)), p5, p95, color='#3179f5', alpha=0.08)
                 
-                # 3. Efecto Glow (Neón) detrás de las líneas
                 ax.plot(p50, color='#3179f5', linewidth=6, alpha=0.15)
                 ax.plot(p95, color='#00ff88', linewidth=4, alpha=0.1)
                 ax.plot(p5, color='#ff3a33', linewidth=4, alpha=0.1)
                 
-                # 4. Líneas principales (Sólidas y nítidas)
                 ax.plot(p50, label='Precio Esperado (P50)', color='#3179f5', linewidth=2)
                 ax.plot(p95, label='Optimista (P95)', color='#00ff88', linewidth=1.5)
                 ax.plot(p5, label='Pesimista (P5)', color='#ff3a33', linewidth=1.5)
                 
-                # 5. Línea del precio actual
                 ax.axhline(S0, color='white', linestyle='--', alpha=0.5, linewidth=1, label=f'Actual: ${S0:.2f}')
                 
-                # 6. Estilo de ejes (TradingView mueve el eje Y a la derecha)
                 ax.yaxis.tick_right()
                 ax.yaxis.set_label_position("right")
                 ax.spines['bottom'].set_color('#2a2e39')
                 ax.spines['left'].set_visible(False)
                 ax.spines['top'].set_visible(False)
                 ax.spines['right'].set_visible(False)
-                ax.tick_params(colors='#787b86') # Color de los números del eje
+                ax.tick_params(colors='#787b86') 
                 
-                ax.set_title(f'PROYECCIÓN ESTRATÉGICA: {ticker_mc}', color='white', fontsize=14, pad=20, loc='left', fontweight='bold')
+                ax.set_title(f'PROYECCIÓN ESTRATÉGICA', color='white', fontsize=14, pad=20, loc='left', fontweight='bold')
                 ax.legend(facecolor='#131722', edgecolor='#2a2e39', loc='upper left', fontsize=10)
                 
                 st.pyplot(fig)
