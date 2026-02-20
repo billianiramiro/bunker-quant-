@@ -129,4 +129,118 @@ with tab1:
                 if dist_resistencia < 4:
                     st.write(f"🧱 **ZONA DE TECHO:** El precio actual (${S0:.2f}) está **muy cerca de su resistencia máxima de los últimos 6 meses** (${resistencia_6m:.2f}). Atención: el mercado suele dudar en comprar aquí por miedo a un rebote a la baja.")
                 elif dist_soporte < 4:
-                    st.write(f"🛏️ **ZONA DE PISO:** El precio (${S0:.2f}) está **apoyado sobre su soporte clave de 6 meses** (${soporte_6m
+                    st.write(f"🛏️ **ZONA DE PISO:** El precio (${S0:.2f}) está **apoyado sobre su soporte clave de 6 meses** (${soporte_6m:.2f}). Históricamente, cuando cae a este nivel, los inversores lo perciben barato y entran a comprar.")
+                else:
+                    st.write(f"🧭 **PUNTO MEDIO:** El activo navega en zona neutral. Su piso histórico reciente (donde suelen entrar a rescatarlo) está en **${soporte_6m:.2f}**, y su techo psicológico (donde suelen vender) está en **${resistencia_6m:.2f}**.")
+
+                # 3. Lógica de Volatilidad
+                if vol_30d < 15:
+                    st.write(f"🌊 **VOLATILIDAD - Calma Chicha ({vol_30d:.1f}%):** La acción se está moviendo con extrema tranquilidad. Ideal para perfiles conservadores; no se esperan movimientos bruscos de un día para el otro.")
+                elif vol_30d < 30:
+                    st.write(f"📊 **VOLATILIDAD - Normal ({vol_30d:.1f}%):** El activo presenta fluctuaciones estándar y muy predecibles, saludables para el mercado de acciones.")
+                elif vol_30d < 50:
+                    st.write(f"🎢 **VOLATILIDAD - Alta ({vol_30d:.1f}%):** El precio está dando sacudidas fuertes. Hay mucha indecisión técnica o noticias impactando el activo. Hay grandes oportunidades de rebote, pero requiere estómago.")
+                else:
+                    st.write(f"⚡ **VOLATILIDAD - Extrema ({vol_30d:.1f}%):** ¡Cuidado! El activo está en una montaña rusa salvaje. El riesgo es muy alto y es probable ver movimientos de dos dígitos en muy pocos días.")
+
+            except Exception as e:
+                st.error(f"Error técnico o Ticker no válido: {e}")
+
+# ==========================================
+# PESTAÑA 2: RADIOGRAFÍA FUNDAMENTAL
+# ==========================================
+with tab2:
+    st.header("Radiografía Fundamental")
+    tickers_input = st.text_input("Tickers (separados por comas)", value="AAPL, GOOGL, KO, MELI, SPY")
+    
+    if st.button("📊 Generar Reporte"):
+        lista_tickers = [t.strip().upper() for t in tickers_input.split(',')]
+        with st.spinner('Analizando balances...'):
+            resultados = []
+            for ticker in lista_tickers:
+                try:
+                    stock = yf.Ticker(ticker)
+                    info = stock.info
+                    
+                    def fmt(val, p=False, m=False):
+                        if val is None or val == "N/A": return "N/A"
+                        if p: return f"{val * 100:.2f}%"
+                        if m: return f"${val:,.2f}"
+                        return f"{val:.2f}"
+
+                    peg = info.get('trailingPegRatio', info.get('pegRatio'))
+                    
+                    resultados.append({
+                        "Ticker": ticker,
+                        "Precio": fmt(info.get('currentPrice', info.get('previousClose')), m=True),
+                        "P/E Ratio": fmt(info.get('trailingPE')),
+                        "PEG Ratio": f"{peg:.2f}" if peg else "N/A",
+                        "P/B Ratio": fmt(info.get('priceToBook')),
+                        "Margen Neto": fmt(info.get('profitMargins'), p=True),
+                        "ROE": fmt(info.get('returnOnEquity'), p=True),
+                        "Deuda/Cap": fmt(info.get('debtToEquity')),
+                        "Div. Yield": fmt(info.get('dividendYield'), p=True)
+                    })
+                except: pass
+            
+            if resultados:
+                st.dataframe(pd.DataFrame(resultados), use_container_width=True)
+            else:
+                st.warning("No hay datos disponibles.")
+
+    with st.expander("📚 Ayuda de Métricas (Glosario)"):
+        st.write("""
+        * **P/E Ratio:** Años que tardarías en recuperar la inversión con las ganancias actuales.
+        * **PEG Ratio:** P/E ajustado al crecimiento. < 1: Crecimiento muy barato.
+        * **P/B Ratio:** Precio contra los activos físicos contables.
+        * **Margen Neto:** Porcentaje de ganancia limpia sobre lo vendido. > 20% es excelente.
+        * **ROE:** Eficiencia gerencial. > 15% histórico es señal de gran empresa.
+        * **Deuda/Cap:** Qué tan endeudada está frente a su dinero propio.
+        """)
+
+# ==========================================
+# PESTAÑA 3: SENTIMIENTO DE MERCADO (RSS)
+# ==========================================
+with tab3:
+    st.header("Análisis de Sentimiento (IA)")
+    ticker_news = st.text_input("Ticker para noticias", value="AAPL").upper()
+    
+    if st.button("📰 Escanear Noticias"):
+        with st.spinner('Leyendo titulares RSS oficiales...'):
+            try:
+                url = f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={ticker_news}&region=US&lang=en-US"
+                req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                xml_data = urllib.request.urlopen(req).read()
+                items = ET.fromstring(xml_data).findall('./channel/item')
+                
+                if not items:
+                    st.warning("Sin noticias recientes en el feed.")
+                else:
+                    sia = SentimentIntensityAnalyzer()
+                    rows = []
+                    total_score = 0
+                    
+                    for item in items:
+                        tit = item.find('title').text
+                        date = item.find('pubDate').text.replace(" +0000", "")
+                        score = sia.polarity_scores(tit)['compound']
+                        total_score += score
+                        
+                        impacto = "🟢 Positivo" if score > 0.15 else "🔴 Negativo" if score < -0.15 else "⚪ Neutral"
+                        rows.append({"Fecha": date, "Impacto": impacto, "Titular": tit, "Score": round(score, 3)})
+                    
+                    if len(rows) > 0:
+                        avg = ( (total_score / len(rows)) + 1 ) * 50
+                        st.subheader(f"Temperatura Actual: {avg:.1f}/100")
+                        
+                        if avg < 40:
+                            st.error("PÁNICO / MIEDO EXTREMO")
+                        elif avg > 60:
+                            st.success("EUFORIA / CODICIA")
+                        else:
+                            st.info("SENTIMIENTO NEUTRAL")
+                            
+                        st.progress(int(avg))
+                        st.dataframe(pd.DataFrame(rows), use_container_width=True)
+            except Exception as e:
+                st.error(f"Error en lectura de noticias: {e}")
