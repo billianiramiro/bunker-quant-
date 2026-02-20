@@ -38,7 +38,6 @@ with st.sidebar:
         if busqueda:
             with st.spinner("Buscando en Wall Street..."):
                 try:
-                    # Conexión directa a la API de búsqueda de Yahoo Finance
                     url = f"https://query2.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(busqueda)}&quotesCount=5"
                     req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
                     respuesta = urllib.request.urlopen(req)
@@ -51,7 +50,6 @@ with st.sidebar:
                             nombre = q.get('shortname', q.get('longname', 'Desconocido'))
                             tipo = q.get('quoteType', 'Activo')
                             bolsa = q.get('exchange', '')
-                            # Agregamos la bolsa para diferenciar fácilmente Argentina de EE.UU.
                             st.success(f"**{ticker_res}** ({nombre}) - {tipo} | {bolsa}")
                     else:
                         st.warning("No se encontraron resultados.")
@@ -109,9 +107,7 @@ with tab1:
                 p5 = np.percentile(price_paths, 5, axis=1)
                 p95 = np.percentile(price_paths, 95, axis=1)
                 
-                # =========================================================
-                # DISEÑO: ESTILO TRADINGVIEW / TECNOLÓGICO
-                # =========================================================
+                # --- DISEÑO: ESTILO TRADINGVIEW / TECNOLÓGICO ---
                 plt.style.use('dark_background')
                 fig, ax = plt.subplots(figsize=(12, 6))
                 
@@ -152,9 +148,7 @@ with tab1:
                 m2.metric("Escenario Base (P50)", f"${p50[-1]:,.2f}", delta=f"{((p50[-1]/S0)-1)*100:.1f}%")
                 m3.metric("Escenario Optimista (P95)", f"${p95[-1]:,.2f}", delta=f"{((p95[-1]/S0)-1)*100:.1f}%")
                 
-                # =========================================================
-                # EL ANALISTA ALGORTÍMICO
-                # =========================================================
+                # --- EL ANALISTA ALGORTÍMICO ---
                 st.divider()
                 st.subheader("📋 Contexto de Mercado (El Analista Algorítmico)")
                 
@@ -178,15 +172,16 @@ with tab1:
                 else:
                     st.error("❄️ **FUERTE BAJISTA:** El sentimiento actual es muy negativo. El mercado se ha estado deshaciendo de este activo consistentemente y cotiza por debajo de todos sus promedios importantes.")
 
+                # 2. Lógica de Niveles (Pisos y Techos) - CORREGIDO EL FORMATO DE DÓLAR
                 dist_soporte = ((S0 - soporte_6m) / S0) * 100
                 dist_resistencia = ((resistencia_6m - S0) / S0) * 100
                 
                 if dist_resistencia < 4:
-                    st.write(f"🧱 **ZONA DE TECHO:** El precio actual (${S0:.2f}) está **muy cerca de su resistencia máxima de los últimos 6 meses** (${resistencia_6m:.2f}). Atención: el mercado suele dudar en comprar aquí por miedo a un rebote a la baja.")
+                    st.write(f"🧱 **ZONA DE TECHO:** El precio actual (\${S0:.2f}) está **muy cerca de su resistencia máxima de los últimos 6 meses** (\${resistencia_6m:.2f}). Atención: el mercado suele dudar en comprar aquí por miedo a un rebote a la baja.")
                 elif dist_soporte < 4:
-                    st.write(f"🛏️ **ZONA DE PISO:** El precio (${S0:.2f}) está **apoyado sobre su soporte clave de 6 meses** (${soporte_6m:.2f}). Históricamente, cuando cae a este nivel, los inversores lo perciben barato y entran a comprar.")
+                    st.write(f"🛏️ **ZONA DE PISO:** El precio (\${S0:.2f}) está **apoyado sobre su soporte clave de 6 meses** (\${soporte_6m:.2f}). Históricamente, cuando cae a este nivel, los inversores lo perciben barato y entran a comprar.")
                 else:
-                    st.write(f"🧭 **PUNTO MEDIO:** El activo navega en zona neutral. Su piso histórico reciente (donde suelen entrar a rescatarlo) está en **${soporte_6m:.2f}**, y su techo psicológico (donde suelen vender) está en **${resistencia_6m:.2f}**.")
+                    st.write(f"🧭 **PUNTO MEDIO:** El activo navega en zona neutral. Su piso histórico reciente (donde suelen entrar a rescatarlo) está en **\${soporte_6m:.2f}**, y su techo psicológico (donde suelen vender) está en **\${resistencia_6m:.2f}**.")
 
                 if vol_30d < 15:
                     st.write(f"🌊 **VOLATILIDAD - Calma Chicha ({vol_30d:.1f}%):** La acción se está moviendo con extrema tranquilidad. Ideal para perfiles conservadores; no se esperan movimientos bruscos de un día para el otro.")
@@ -240,7 +235,7 @@ with tab2:
             if resultados:
                 st.dataframe(pd.DataFrame(resultados), use_container_width=True)
             else:
-                st.warning("No hay datos disponibles.")
+                st.warning("No hay datos disponibles para los tickers ingresados.")
 
     with st.expander("📚 Ayuda de Métricas (Glosario)"):
         st.write("""
