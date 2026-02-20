@@ -17,7 +17,6 @@ nltk.download('vader_lexicon', quiet=True)
 # ==========================================
 st.set_page_config(page_title="Bunker Quant", layout="wide")
 
-# Estética general de la App (Fondo oscuro profesional)
 st.markdown("""
     <style>
     .main { background-color: #131722; }
@@ -48,6 +47,8 @@ with tab1:
         with st.spinner('Procesando algoritmos de predicción y análisis técnico...'):
             try:
                 df = yf.download(ticker_mc, period='5y', progress=False)
+                
+                # MATRIZ LIMPIA: Usamos esto para evitar errores de Series ambiguas
                 close_prices = df['Close'].squeeze().dropna().values
                 S0 = close_prices[-1]
                 
@@ -96,20 +97,22 @@ with tab1:
                 m3.metric("Escenario Alto", f"${p95[-1]:,.2f}", delta=f"{((p95[-1]/S0)-1)*100:.1f}%")
                 
                 # =========================================================
-                # EL ANALISTA ALGORTÍMICO (Contexto de Mercado)
+                # EL ANALISTA ALGORTÍMICO (Contexto de Mercado) - ¡CORREGIDO!
                 # =========================================================
                 st.divider()
                 st.subheader("📋 Contexto de Mercado (El Analista Algorítmico)")
                 
-                # Cálculos de pisos, techos y medias móviles
-                historial_6m = df['Close'][-126:]
+                # Usamos la matriz limpia (close_prices) en lugar de df['Close']
+                historial_6m = close_prices[-126:] if len(close_prices) >= 126 else close_prices
                 soporte_6m = historial_6m.min()
                 resistencia_6m = historial_6m.max()
-                sma_50 = df['Close'][-50:].mean()
-                sma_200 = df['Close'][-200:].mean()
                 
-                # Cálculo de Volatilidad reciente (últimos 30 días)
-                retornos_30d = np.log(df['Close'][-30:] / df['Close'][-30:].shift(1)).dropna()
+                sma_50 = close_prices[-50:].mean() if len(close_prices) >= 50 else close_prices.mean()
+                sma_200 = close_prices[-200:].mean() if len(close_prices) >= 200 else close_prices.mean()
+                
+                # Cálculo de Volatilidad reciente (últimos 30 días) a prueba de fallos
+                precios_30d = close_prices[-31:] if len(close_prices) >= 31 else close_prices
+                retornos_30d = np.log(precios_30d[1:] / precios_30d[:-1])
                 vol_30d = retornos_30d.std() * np.sqrt(252) * 100
                 
                 # 1. Lógica de Tendencia
