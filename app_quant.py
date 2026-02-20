@@ -48,7 +48,7 @@ with tab1:
             try:
                 df = yf.download(ticker_mc, period='5y', progress=False)
                 
-                # MATRIZ LIMPIA: Usamos esto para evitar errores de Series ambiguas
+                # MATRIZ LIMPIA
                 close_prices = df['Close'].squeeze().dropna().values
                 S0 = close_prices[-1]
                 
@@ -89,20 +89,20 @@ with tab1:
                 ax.legend(facecolor='#131722', edgecolor='#2a2e39')
                 st.pyplot(fig)
                 
-                # --- MÉTRICAS DE RESULTADO ---
+                # --- MÉTRICAS DE RESULTADO (CORREGIDO COLOR PESIMISTA) ---
                 st.subheader("Objetivos Proyectados")
                 m1, m2, m3 = st.columns(3)
-                m1.metric("Escenario Bajo", f"${p5[-1]:,.2f}", delta=f"{((p5[-1]/S0)-1)*100:.1f}%", delta_color="inverse")
-                m2.metric("Escenario Base", f"${p50[-1]:,.2f}", delta=f"{((p50[-1]/S0)-1)*100:.1f}%")
-                m3.metric("Escenario Alto", f"${p95[-1]:,.2f}", delta=f"{((p95[-1]/S0)-1)*100:.1f}%")
+                # Se eliminó delta_color="inverse" para que el negativo se vea rojo normal
+                m1.metric("Escenario Pesimista (P5)", f"${p5[-1]:,.2f}", delta=f"{((p5[-1]/S0)-1)*100:.1f}%")
+                m2.metric("Escenario Base (P50)", f"${p50[-1]:,.2f}", delta=f"{((p50[-1]/S0)-1)*100:.1f}%")
+                m3.metric("Escenario Optimista (P95)", f"${p95[-1]:,.2f}", delta=f"{((p95[-1]/S0)-1)*100:.1f}%")
                 
                 # =========================================================
-                # EL ANALISTA ALGORTÍMICO (Contexto de Mercado) - ¡CORREGIDO!
+                # EL ANALISTA ALGORTÍMICO (CORREGIDO ESPACIADO DE TEXTO)
                 # =========================================================
                 st.divider()
                 st.subheader("📋 Contexto de Mercado (El Analista Algorítmico)")
                 
-                # Usamos la matriz limpia (close_prices) en lugar de df['Close']
                 historial_6m = close_prices[-126:] if len(close_prices) >= 126 else close_prices
                 soporte_6m = historial_6m.min()
                 resistencia_6m = historial_6m.max()
@@ -110,7 +110,6 @@ with tab1:
                 sma_50 = close_prices[-50:].mean() if len(close_prices) >= 50 else close_prices.mean()
                 sma_200 = close_prices[-200:].mean() if len(close_prices) >= 200 else close_prices.mean()
                 
-                # Cálculo de Volatilidad reciente (últimos 30 días) a prueba de fallos
                 precios_30d = close_prices[-31:] if len(close_prices) >= 31 else close_prices
                 retornos_30d = np.log(precios_30d[1:] / precios_30d[:-1])
                 vol_30d = retornos_30d.std() * np.sqrt(252) * 100
@@ -125,16 +124,16 @@ with tab1:
                 else:
                     st.error("❄️ **FUERTE BAJISTA:** El sentimiento actual es muy negativo. El mercado se ha estado deshaciendo de este activo consistentemente y cotiza por debajo de todos sus promedios importantes.")
 
-                # 2. Lógica de Niveles (Pisos y Techos)
+                # 2. Lógica de Niveles (Pisos y Techos) - ESPACIOS CORREGIDOS
                 dist_soporte = ((S0 - soporte_6m) / S0) * 100
                 dist_resistencia = ((resistencia_6m - S0) / S0) * 100
                 
                 if dist_resistencia < 4:
-                    st.write(f"🧱 **ZONA DE TECHO:** El precio actual (${S0:.2f}) está **muy cerca de su resistencia máxima de los últimos 6 meses** (${resistencia_6m:.2f}). Atención: el mercado suele dudar en comprar aquí por miedo a un rebote a la baja.")
+                    st.write(f"🧱 **ZONA DE TECHO:** El precio actual (${S0:.2f}) está ** muy cerca de su resistencia máxima de los últimos 6 meses ** (${resistencia_6m:.2f}). Atención: el mercado suele dudar en comprar aquí por miedo a un rebote a la baja.")
                 elif dist_soporte < 4:
-                    st.write(f"🛏️ **ZONA DE PISO:** El precio (${S0:.2f}) está **apoyado sobre su soporte clave de 6 meses** (${soporte_6m:.2f}). Históricamente, cuando cae a este nivel, los inversores lo perciben barato y entran a comprar.")
+                    st.write(f"🛏️ **ZONA DE PISO:** El precio (${S0:.2f}) está ** apoyado sobre su soporte clave de 6 meses ** (${soporte_6m:.2f}). Históricamente, cuando cae a este nivel, los inversores lo perciben barato y entran a comprar.")
                 else:
-                    st.write(f"🧭 **PUNTO MEDIO:** El activo navega en zona neutral. Su piso histórico reciente (donde suelen entrar a rescatarlo) está en **${soporte_6m:.2f}**, y su techo psicológico (donde suelen vender) está en **${resistencia_6m:.2f}**.")
+                    st.write(f"🧭 **PUNTO MEDIO:** El activo navega en zona neutral. Su piso histórico reciente (donde suelen entrar a rescatarlo) está en ** ${soporte_6m:.2f} **, y su techo psicológico (donde suelen vender) está en ** ${resistencia_6m:.2f} **.")
 
                 # 3. Lógica de Volatilidad
                 if vol_30d < 15:
